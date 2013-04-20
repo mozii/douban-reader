@@ -28,15 +28,38 @@
   "Fetch user's book collection from douban."
   (fetch-json *douban-book-api* uid "collections" start count))
 
+(defun add-to-people (type item)
+  "If the item is a user type, then add to gobal variable *people*"
+  (if (string= type "user")
+      (setf
+       (gethash (get-value-by-tag :screen--name item) *people*)
+       (get-value-by-tag :uid item))))
+
+(defmacro json-handle (key json-list &body body)
+  `(mapcar #'(lambda (var)
+               (let ((value (get-value-by-tag ,key var)))
+                 ,@body)) 
+           ,json-list))
+
+;; macroexpand: get-people 
+;;
+;; (defun get-people (uid)
+;;   (labels ((collect (s)
+;;              (mapcar #'(lambda (x)
+;;                          (let ((type (get-value-by-tag :type x)))
+;;                            (funcall 'add-to-people type x)))
+;;                      s)))
+;;     (progn
+;;       (collect (fetch-following uid))
+;;       (collect (fetch-followers uid))
+;;       *people*)))
+
 (defun get-people (uid)
   "Find user's following and followers from douban, and add them to
 the global variable *people*"
   (labels ((collect (s)
-             (dolist (x s)
-               (if (string= (cdr (assoc :type x)) "user")
-                   (setf
-                    (gethash (cdr (assoc :screen--name x)) *people*)
-                    (cdr (assoc :uid x)))))))
+             (json-handle :type s
+                 (add-to-people value var))))
     (progn
       (collect (fetch-following uid))
       (collect (fetch-followers uid))
@@ -46,13 +69,21 @@ the global variable *people*"
   "Get the value by tag from json string."
   (cdr (assoc tag s)))
 
+;;macroexpand: get-books 
+;;
+;; (defun get-books (json-string)
+;;   "Get books info from json string."
+;;   (let ((s (get-value-by-tag :collections json-string)))
+;;     (mapcar #'(lambda (x)
+;;                 (let ((value (get-value-by-tag :book x)))
+;;                   (get-value-by-tag :title value)))
+;;             s)))
+
 (defun get-books (json-string)
   "Get books info from json string."
   (let ((s (get-value-by-tag :collections json-string)))
-    (mapcar #'(lambda (x)
-                (let ((book (get-value-by-tag :book x)))
-                  (get-value-by-tag :title book)))
-            s)))
+    (json-handle :book s
+      (get-value-by-tag :title value))))
 
 (defun get-book-collection (uid)
   "Get user's book collection from douban."
@@ -89,13 +120,3 @@ the global variable *people*"
   (maphash #'(lambda (user uri)
                (format t "~a ~a~%" user uri))
            *people*))
-
-
-
-
-
-
-
-
-
-
