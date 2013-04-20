@@ -1,8 +1,13 @@
 (defpackage :douban-reader
   (:use :cl
         :drakma
-        :cxml
-        :cl-ppcre)
+        :cl-json
+        :cl-ppcre
+        :babel)
   (:export
-   get-following
-   print-following))
+   fetch-following
+   fetch-followers
+   fetch-book-collection
+   get-people
+   get-book-collection
+   find-common-books))

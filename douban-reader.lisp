@@ -1,37 +1,103 @@
 (in-package :douban-reader)
 
-(defparameter *following* (make-hash-table))
-(defparameter *user-contacts-uri* "http://api.douban.com/people/")
-(defparameter *max-result* 50)
+(defparameter *douban-user-api* "http://api.douban.com/shuo/v2/users/")
+(defparameter *douban-book-api* "http://api.douban.com/v2/book/user/")
+(defparameter u "livevsevil")
+(defparameter *book-collection* nil)
+(defparameter *people* (make-hash-table :test 'equal))
+(defparameter *common-db* nil)
 
-(defun fetch-xml (uri id
-                  &optional (start-index 1) (max-result *max-result*))
-  (let  ((request  (concatenate 'string uri id "/contacts?start-index="
-                                (write-to-string start-index)
-                                "&max-results=" (write-to-string max-result))))
-    (cxml:parse
-     (drakma:http-request request)
-     (cxml-dom:make-dom-builder))))
+(defun fetch-json (api uid request-type start count)
+  "Fetch json string from douban."
+  (labels ((request (url id type s cnt)
+             (concatenate 'string
+                          url id "/" type
+                          "?start=" (write-to-string s)
+                          "&count=" (write-to-string cnt))))
+    (json:decode-json-from-string
+     (babel:octets-to-string
+      (drakma:http-request (request api uid request-type start count))))))
 
-(defun find-child-element (element name)
-  (loop for e across (dom:child-nodes element)
-       if (equal (dom:node-name e) name)
-       return e))
+(defun fetch-following (uid &optional (start 0) (count 100))
+  "Fetch user's following from douban."
+  (fetch-json *douban-user-api* uid "following" start count))
 
-(defun child-node-value (node name)
-  (let ((e (find-child-element node name)))
-    (dom:node-value
-     (find-child-element e "#text"))))
+(defun fetch-followers (uid &optional (start 0) (count 100))
+  "Fetch user's followers from douban"
+  (fetch-json *douban-user-api* uid "followers" start count))
 
-(defun get-following (id)
-  (let* ((doc (fetch-xml *user-contacts-uri* id))
-        (entries (dom:get-elements-by-tag-name doc "entry")))
-    (loop for e across entries do
-         (setf (gethash (child-node-value e "title") *following*)
-               (child-node-value e "id")))
-    *following*))
+(defun fetch-book-collection (uid &optional (start 0) (count 100))
+  "Fetch user's book collection from douban."
+  (fetch-json *douban-book-api* uid "collections" start count))
 
-(defun print-following ()
+(defun get-people (uid)
+  "Find user's following and followers from douban, and add them to
+the global variable *people*"
+  (labels ((collect (s)
+             (dolist (x s)
+               (if (string= (cdr (assoc :type x)) "user")
+                   (setf
+                    (gethash (cdr (assoc :screen--name x)) *people*)
+                    (cdr (assoc :uid x)))))))
+    (progn
+      (collect (fetch-following uid))
+      (collect (fetch-followers uid))
+      *people*)))
+
+(defun get-value-by-tag (tag s)
+  "Get the value by tag from json string."
+  (cdr (assoc tag s)))
+
+(defun get-books (json-string)
+  "Get books info from json string."
+  (let ((s (get-value-by-tag :collections json-string)))
+    (mapcar #'(lambda (x)
+                (let ((book (get-value-by-tag :book x)))
+                  (get-value-by-tag :title book)))
+            s)))
+
+(defun get-book-collection (uid)
+  "Get user's book collection from douban."
+  (do* ((count 300)
+        (start 0 (+ start count))
+        (collection nil)
+        (books "book")
+        (str nil))
+       ((null books) collection)
+    (progn
+      (setq str (fetch-book-collection uid start ))
+      (setq books (get-books str))
+      (setq collection (nconc collection books)))))
+
+(defun common-books (c1 c2)
+  "Get the common books in two book collections."
+  (intersection c1 c2 :test #'string-equal))
+
+(defun find-common-books (uid people)
+  "Find common books between people."
+  (let ((c1 (get-book-collection uid))
+        (c2 nil)
+        (books nil))
+   (maphash #'(lambda (user id)
+               (progn
+                 (setq c2 (get-book-collection id))
+                 (setq books (common-books c1 c2))
+                 (format t "~A:~A books in common.~%" user (length books))
+                 (push (cons user (cons (length books) books)) *common-db*)))
+            people)
+   *common-db*))
+
+(defun print-people ()
   (maphash #'(lambda (user uri)
                (format t "~a ~a~%" user uri))
-           *following*))
+           *people*))
+
+
+
+
+
+
+
+
+
+

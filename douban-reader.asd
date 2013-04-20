@@ -10,5 +10,6 @@
     :components ((:file "packages")
                  (:file "douban-reader" :depends-on ("packages")))
     :depends-on (:drakma
-                 :cxml
-                 :cl-ppcre))
+                 :cl-json
+                 :cl-ppcre
+                 :babel))
