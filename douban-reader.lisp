@@ -2,8 +2,6 @@
 
 (defparameter *douban-user-api* "http://api.douban.com/shuo/v2/users/")
 (defparameter *douban-book-api* "http://api.douban.com/v2/book/user/")
-(defparameter u "livevsevil")
-(defparameter *book-collection* nil)
 (defparameter *people* (make-hash-table :test 'equal))
 (defparameter *common-db* nil)
 
