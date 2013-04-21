@@ -92,7 +92,7 @@ c.获取用户收藏的图书(默认返回前100个)
 
   ;返回第101至150个
 
-    *fetch-book-collection("livevsevil" 100 50)
+    *(fetch-book-collection "livevsevil" 100 50)
     
 d.获取用户所有的following和followers
 
