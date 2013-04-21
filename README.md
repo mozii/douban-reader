@@ -26,7 +26,23 @@
 
 #### Examples(在sbcl下使用）
 
-*1.加载package*  
+*1.安装quicklisp*
+
+a.下载quicklisp文件
+  [下载地址](http://beta.quicklisp.org/quicklisp.lisp)
+  
+b.打开sbcl进行安装
+
+    $ sbcl --load quickload.lisp
+    * (quicklisp-quickstart:install)
+    
+c.设置每次启动时自动加载quicklisp
+    
+    * (ql:add-to-init-file)
+    
+d.将package放到~/quicklisp/local-projects/文件夹下后使用(ql:quickload 包名)即可加载。
+
+*2.加载package*  
   ;使用quickload加载
 
     * (ql:quickload :douban-reader)
@@ -43,7 +59,7 @@
 
     #<PACKAGE "DOUBAN-READER">
     
-*2.接口使用*
+*3.接口使用*
 
 以我的豆瓣uid（livevsevil)为例  
   
