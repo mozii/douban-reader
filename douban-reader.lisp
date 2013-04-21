@@ -61,7 +61,7 @@ the global variable *people*"
              (json-handle :type s
                  (add-to-people value var))))
     (progn
-      (collect (fetch-following uid))
+      ;;(collect (fetch-following uid))
       (collect (fetch-followers uid))
       *people*)))
 
@@ -98,25 +98,63 @@ the global variable *people*"
       (setq books (get-books str))
       (setq collection (nconc collection books)))))
 
-(defun common-books (c1 c2)
+(defclass common-item ()
+  ((user :accessor common-item-user
+         :initarg :user)
+   (num :accessor common-item-num
+        :initarg :num)
+   (list :accessor common-item-list
+         :initarg :list)))
+
+(defun get-common-books (c1 c2)
   "Get the common books in two book collections."
   (intersection c1 c2 :test #'string-equal))
 
+(defun make-common-item (user common)
+  "Make common books item."
+  (make-instance 'common-item
+                 :user user
+                 :num (length common)
+                 :list common))
+
+
 (defun find-common-books (uid people)
   "Find common books between people."
-  (let ((c1 (get-book-collection uid))
-        (c2 nil)
-        (books nil))
-   (maphash #'(lambda (user id)
-               (progn
-                 (setq c2 (get-book-collection id))
-                 (setq books (common-books c1 c2))
-                 (format t "~A:~A books in common.~%" user (length books))
-                 (push (cons user (cons (length books) books)) *common-db*)))
-            people)
-   *common-db*))
+  (let ((c1 (get-book-collection uid)))
+    (maphash #'(lambda (user id)
+                 (let* ((c2 (get-book-collection id))
+                        (common (get-common-books c1 c2))
+                        (item (make-common-item user common)))
+                   (format t "~A: ~A books in common.~%" user (length common))
+                   (push item *common-db*)))
+             people)
+    *common-db*))
 
 (defun print-people ()
   (maphash #'(lambda (user uri)
                (format t "~a ~a~%" user uri))
            *people*))
+
+(defgeneric htmlize-data (data)
+  (:documentation "Print lisp into html."))
+
+(defmethod htmlize-data ((data common-item))
+  (with-output-to-string (s)
+    (format s "<tr>")
+    (format s "<td>~A</td>" (common-item-user data))
+    (format s "<td>~A</td>" (common-item-num data))
+    (format s "<td>~{&lt~A&gt~^, ~}</td>" (common-item-list data))
+    (format s "</tr>~%")))
+ 
+(defun gen-html-file (db)
+  "Print the data in html file."
+  (with-open-file (s "output.htm" :direction :output
+                     :if-does-not-exist :create
+                     :if-exists :supersede)
+    (progn
+      (format s "<meta http-equiv=\"Content-Type\" content=\"text/html;charset=utf-8\" />")
+      (format s "<html>~%<body>~%<table border>~%")
+      (format s "<tr><th>Name</th><th>Num</th><th>Books</th>~%")
+      (dolist (v db)
+        (format s "~A" (htmlize-data v)))
+      (format s "</body>~%</html>~%"))))
